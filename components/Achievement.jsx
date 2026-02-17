@@ -2,7 +2,7 @@ import { LinearGradient } from "expo-linear-gradient";
 import { Animated, Easing, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import GradientIcon from "./GradientIcon";
 import { FontAwesome6 } from "@expo/vector-icons";
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import CustomModal from "./CustomModal";
 import { useTheme } from "../context/ThemeContext";
 
@@ -17,7 +17,8 @@ export default function Achievement({
         description: "Registra tu primer vaso de agua"
     },
     isCompleted=false,
-    date="xx/xx/xx"
+    date="xx/xx/xx",
+    isLoading=false
 }){
     const { theme } = useTheme();
     const styles = useMemo(() => createStyles(theme), [theme]);
@@ -47,6 +48,32 @@ export default function Achievement({
                 useNativeDriver: true,
             })
         ]).start()
+    }
+
+    const pulseAnim = useRef(new Animated.Value(0.5)).current;
+
+    useEffect(() => {
+        if (isLoading) {
+            Animated.loop(
+                Animated.sequence([
+                    Animated.timing(pulseAnim, { toValue: 1, duration: 800, useNativeDriver: true }),
+                    Animated.timing(pulseAnim, { toValue: 0.5, duration: 800, useNativeDriver: true })
+                ])
+            ).start();
+        }
+    }, [isLoading]);
+
+    if (isLoading) {
+        return (
+            <Animated.View style={{ opacity: pulseAnim }}>
+                <View style={[styles.container, { width, height, backgroundColor: theme.colors.border, borderRadius: 20 }]}>
+                    <View style={[
+                        styles.innerContainer, 
+                        { width: width - 8, height: height - 8, backgroundColor: theme.colors.background, opacity: 0.5 }
+                    ]} />
+                </View>
+            </Animated.View>
+        );
     }
 
     if(isCompleted){

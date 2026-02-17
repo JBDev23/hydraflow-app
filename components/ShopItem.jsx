@@ -1,7 +1,7 @@
 import { LinearGradient } from "expo-linear-gradient";
-import { Dimensions, StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import { Animated, Dimensions, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { FontAwesome6 } from "@expo/vector-icons";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import CustomModal from "./CustomModal";
 import Hat1 from "../assets/hydra/Hat1.svg"
 import Hat2 from "../assets/hydra/Hat2.svg"
@@ -28,13 +28,14 @@ export default function ShopItem({
     equiped = false,
     date = "26/01/26",
     handleEquip,
-    handleBuyed
+    handleBuyed,
+    isLoading = false
 }) {
     const { theme } = useTheme();
     const styles = useMemo(() => createStyles(theme), [theme]);
     const { userProfile } = useGlobal()
 
-    const drops = userProfile?.stats.drops
+    const drops = userProfile?.stats.dropsBalance
     const canAfford = drops >= data.price;
 
     const [modalVisible, setModalVisible] = useState(false)
@@ -53,13 +54,40 @@ export default function ShopItem({
     };
 
     const onAction = () => {
+        setModalVisible(false);
         if (owned) {
             handleEquip(data.item);
         } else {
             if (canAfford) handleBuyed(data.item);
         }
-        setModalVisible(false);
+        
     };
+
+    const pulseAnim = useRef(new Animated.Value(0.5)).current;
+
+    useEffect(() => {
+        if (isLoading) {
+            Animated.loop(
+                Animated.sequence([
+                    Animated.timing(pulseAnim, { toValue: 1, duration: 800, useNativeDriver: true }),
+                    Animated.timing(pulseAnim, { toValue: 0.5, duration: 800, useNativeDriver: true })
+                ])
+            ).start();
+        }
+    }, [isLoading]);
+
+    if (isLoading) {
+        return (
+            <Animated.View style={{ opacity: pulseAnim }}>
+                <View style={[styles.container, { width, height, backgroundColor: theme.colors.border, borderRadius: 20 }]}>
+                    <View style={[
+                        styles.innerContainer,
+                        { width: width - 8, height: height - 8, backgroundColor: theme.colors.background, opacity: 0.5 }
+                    ]} />
+                </View>
+            </Animated.View>
+        );
+    }
 
     const renderModalContent = () => (
         <View style={styles.item}>
@@ -79,7 +107,7 @@ export default function ShopItem({
                         <Drop />
                     </View>
                 </>
-                
+
             )}
 
             <TouchableOpacity

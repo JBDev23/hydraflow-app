@@ -7,42 +7,58 @@ import ShopItem from '../../components/ShopItem';
 import Drop from "../../assets/Drop.svg"
 import { useTheme } from '../../context/ThemeContext';
 import { useGlobal } from '../../context/GlobalContext';
+import { api } from '../../services/api';
 const screenWidth = Dimensions.get('window').width;
 const screenHeight = Dimensions.get('window').height;
 
-const SKIN_LIST = [
-  { id: "sunGlasses", category: "glasses", name: "Gafas de sol", price: 5 },
-  { id: "pinkGlasses", category: "glasses", name: "Gafas rosas", price: 8 },
-  { id: "hat1", category: "hat", name: "Gorro", price: 8 },
-  { id: "hat2", category: "hat", name: "Sombrero", price: 10 },
-  { id: "bowTie", category: "neck", name: "Pajarita", price: 12 },
-  { id: "ribbon", category: "hat", name: "Lazo", price: 12 },
-]
+const SKELETONS = Array.from({ length: 6 });
 
 export default function Shop() {
   const { theme } = useTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
   const { userProfile, updateUserProfile } = useGlobal()
 
+  const [shopItems, setShopItems] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
+
   const ownedSkins = userProfile?.skins?.owned || [];
   const equipedSkins = userProfile?.skins?.equiped || [];
-  const drops = userProfile?.stats?.drops || 0;
-  const skinCount = userProfile?.stats?.skins || 0;
+  const drops = userProfile?.stats?.dropsBalance || 0
 
-  const handleEquip = (newItemId) => {
-    let newEquipedList = [...equipedSkins];
+  const skinsCount = userProfile?.stats?.skinsCount || 0
 
-    if (newEquipedList.includes(newItemId)) {
-      newEquipedList = newEquipedList.filter(id => id !== newItemId);
-    } else {
-      const newItem = SKIN_LIST.find(item => item.id === newItemId);
+  useEffect(() => {
+    const loadCatalog = async () => {
+      setIsLoading(true);
+      try {
+        const items = await api.getItems();
+        setShopItems(items);
+      } catch (error) {
+        console.error("Error cargando tienda:", error);
+      } finally {
+        setIsLoading(false),5000;
+      }
+    };
+    loadCatalog();
+  }, []);
 
-      if (newItem) {
+
+  const handleEquip = async (itemId) => {
+    const previousEquipedSkins = [...equipedSkins];
+
+    let newEquipedList = [...previousEquipedSkins];
+    
+    const itemToEquip = shopItems.find(i => i.id === itemId);
+    
+    if (itemToEquip) {
+      if (newEquipedList.includes(itemId)) {
+        newEquipedList = newEquipedList.filter(id => id !== itemId);
+      } else {
         newEquipedList = newEquipedList.filter(equippedId => {
-          const equippedItem = SKIN_LIST.find(item => item.id === equippedId);
-          return equippedItem && equippedItem.category !== newItem.category;
+          const currentItem = shopItems.find(i => i.id === equippedId);
+          return currentItem ? currentItem.category !== itemToEquip.category : true;
         });
-        newEquipedList.push(newItemId);
+        newEquipedList.push(itemId);
       }
     }
 
@@ -52,34 +68,47 @@ export default function Shop() {
         equiped: newEquipedList
       }
     });
+
+    try {
+      const updatedUserItems = await api.equipItem(itemId);
+      
+      if (!updatedUserItems) {
+        throw new Error("Error en servidor");
+      }
+    } catch (error) {
+      console.error("Error optimista equipando:", error);
+      updateUserProfile({
+        skins: {
+          owned: ownedSkins,
+          equiped: previousEquipedSkins
+        }
+      });
+    }
   };
 
-  const handleBuy = (itemId) => {
-    let newOwnedList = [...ownedSkins];
-    let newDrops = drops
+  const handleBuy = async (itemId) => {
+    if (ownedSkins.includes(itemId)) return;
 
-    if (newOwnedList.includes(itemId)) {
-      newOwnedList = newOwnedList.filter(id => id !== itemId);
-    } else {
-      newOwnedList.push(itemId);
+    const response = await api.buyItem(itemId);
 
-      const price = SKIN_LIST.find(i => i.id === itemId).price;
-      if (newDrops >= 0) {
-        newDrops = drops - price;
-      }
+    if (response) {
+      const updatedUserItems = response.items;
+      
+      const newOwned = updatedUserItems.map(i => i.itemId);
+      const newEquiped = updatedUserItems.filter(i => i.isEquipped).map(i => i.itemId);
 
+      updateUserProfile({
+        skins: {
+          owned: newOwned,
+          equiped: newEquiped
+        },
+        stats: {
+          ...userProfile.stats,
+          dropsBalance: response.drops, 
+          skinsCount: response.skinsCount
+        }
+      });
     }
-
-    updateUserProfile({
-      skins: {
-        owned: newOwnedList,
-        equiped: equipedSkins
-      },
-      stats: {
-        ...userProfile.stats,
-        drops: newDrops
-      }
-    });
   };
 
   return (
@@ -92,7 +121,7 @@ export default function Shop() {
           <View style={styles.statItem}>
             <Text style={styles.statText}>Trajes:</Text>
             <View style={styles.statContainer}>
-              <Text style={styles.statText}>{skinCount}</Text>
+              <Text style={styles.statText}>{skinsCount}</Text>
               <GradientIcon size={26} colors={['#FF01AA', '#A099FF']}>
                 <FontAwesome6 size={21} name="shirt" />
               </GradientIcon>
@@ -108,15 +137,24 @@ export default function Shop() {
         </View>
       </View>
       <View style={styles.archievementsContainer}>
-        {SKIN_LIST.map((skin) => {
-          return (
+        {isLoading ? (
+          SKELETONS.map((_, index) => (
+            <ShopItem
+              key={`skeleton-${index}`}
+              width={screenWidth * 0.9 * 0.48}
+              height={screenWidth * 0.9 * 0.48}
+              isLoading={true}
+            />
+          ))
+        ) : (
+          shopItems.map((skin) => (
             <ShopItem
               key={skin.id}
-              width={screenWidth * 0.9 * 0.45 + 8}
-              height={screenWidth * 0.9 * 0.45 + 8}
+              width={screenWidth * 0.9 * 0.48}
+              height={screenWidth * 0.9 * 0.48}
               data={{
                 item: skin.id,
-                name: skin.name,
+                name: skin.name.es,
                 price: skin.price
               }}
               owned={ownedSkins.includes(skin.id)}
@@ -124,8 +162,8 @@ export default function Shop() {
               handleEquip={handleEquip}
               handleBuyed={handleBuy}
             />
-          )
-        })}
+          ))
+        )}
       </View>
     </ScrollView>
   );

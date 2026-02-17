@@ -14,7 +14,7 @@ export default function Onboarding() {
     const { theme } = useTheme()
     const styles = useMemo(() => createStyles(theme), [theme])
 
-    const [name, setName] = useState("a");
+    const [name, setName] = useState("");
 
     const handleNext = () => {
         if (name.trim().length === 0) {
@@ -24,7 +24,7 @@ export default function Onboarding() {
 
         updateUserProfile({ name: name.trim() })
 
-        router.push("/(auth)/age")
+        router.push("/(auth)/login")
     }
 
     const wrongAnim = useRef(new Animated.Value(0)).current;
@@ -67,7 +67,7 @@ export default function Onboarding() {
                     <View style={styles.formElem}>
                         <Text style={styles.label}>¿Cuál es tu nombre?</Text>
                         <Animated.View style={{transform: [{translateX: wrongAnim}]}}>
-                            <TextInput defaultValue="a" style={styles.input} onChangeText={setName} placeholder="ej: Hydra" />
+                            <TextInput defaultValue="" style={styles.input} onChangeText={setName} placeholder="ej: Hydra" />
                         </Animated.View>
                     </View>
                 </View>

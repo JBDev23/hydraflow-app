@@ -2,22 +2,30 @@ import React, { useEffect, useMemo, useState } from "react";
 import { StyleSheet, Text, TouchableOpacity, View, Dimensions } from "react-native";
 import { FontAwesome6 } from "@expo/vector-icons";
 import { useTheme } from "../context/ThemeContext";
+import { api } from "../services/api";
+import { formatDateForBackend } from "../utils/dateFormatter";
+import { useGlobal } from "../context/GlobalContext";
 
 const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
 
 const DAYS = ["L", "M", "X", "J", "V", "S", "D"];
 
-const Day = React.memo(({ date, isToday, isGoalReached, styles, theme }) => {
+const Day = React.memo(({ date, isToday, isGoalReached, changeDay, isSelected, styles, theme }) => {
     const dayIndex = (date.getDay() + 6) % 7;
     const dayName = DAYS[dayIndex];
     const dayNumber = date.getDate();
 
+    let backcolor = theme.colors.contrast
+
+    if(isGoalReached) backcolor = theme.colors.primaryMid
+    if(isSelected) backcolor = theme.colors.primaryDark
+
     return (
         <View style={styles.dayContainer}>
             <Text style={[styles.text, { lineHeight: 21 }]}>{dayName}</Text>
-            <View style={[
+            <TouchableOpacity onPress={()=>changeDay(date)} style={[
                 styles.numberContainer, 
-                { backgroundColor: isGoalReached ? theme.colors.primaryDark : theme.colors.contrast }
+                { backgroundColor: backcolor }
             ]}>
                 <Text style={[
                     styles.text, 
@@ -25,15 +33,16 @@ const Day = React.memo(({ date, isToday, isGoalReached, styles, theme }) => {
                 ]}>
                     {dayNumber}
                 </Text>
-            </View>
+            </TouchableOpacity>
             {isToday && <View style={styles.actualDot} />}
         </View>
     );
 });
 
-export default function WeekCalendar({ onMonthChange }) {
+export default function WeekCalendar({ onMonthChange, selectedDay, onSelectedDayChange }) {
     const { theme } = useTheme();
     const styles = useMemo(() => createStyles(theme), [theme]);
+    const {userProfile} = useGlobal()
 
     const [currentMonday, setCurrentMonday] = useState(() => {
         const today = new Date();
@@ -43,6 +52,8 @@ export default function WeekCalendar({ onMonthChange }) {
         monday.setHours(0, 0, 0, 0); 
         return monday;
     });
+
+    const [totals, setTotals] = useState({})
 
     const weekDays = useMemo(() => {
         const days = [];
@@ -67,9 +78,22 @@ export default function WeekCalendar({ onMonthChange }) {
         setCurrentMonday(newDate);
     };
 
+    const changeDay = (date) => {
+        onSelectedDayChange(date)
+    }
+
+    const getTotals = async(start, end) => {
+        const newTotals = await api.getRangeMetrics(start, end)
+        setTotals(newTotals)
+    }
+
+    useEffect(()=>{
+        getTotals(weekDays[0], weekDays[6])
+    }, [weekDays])
+
     return (
         <View style={styles.container}>
-            <TouchableOpacity 
+            <TouchableOpacity
                 hitSlop={{ top: 20, bottom: 20, left: 20, right: 20 }} 
                 onPress={() => changeWeek(-1)} 
                 style={styles.icon}
@@ -80,14 +104,18 @@ export default function WeekCalendar({ onMonthChange }) {
             <View style={styles.daysContainer}>
                 {weekDays.map((day) => {
                     const isToday = day.toDateString() === new Date().toDateString();
+                    const isGoalReached = totals[formatDateForBackend(day)] >= userProfile?.goal
+                    const isSelected = selectedDay.toDateString() == day.toDateString()
                     return (
                         <Day 
                             key={day.toISOString()} 
                             date={day} 
                             isToday={isToday}
-                            isGoalReached={false} 
+                            isGoalReached={isGoalReached}
+                            changeDay={()=>changeDay(day)}
                             styles={styles}
                             theme={theme}
+                            isSelected={isSelected}
                         />
                     );
                 })}

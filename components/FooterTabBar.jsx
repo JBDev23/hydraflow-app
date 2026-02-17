@@ -1,5 +1,5 @@
 import { FontAwesome6 } from "@expo/vector-icons";
-import { useEffect, useRef, useState, useImperativeHandle, useMemo, forwardRef } from "react";
+import { useEffect, useRef, useState, useImperativeHandle, useMemo, forwardRef, useContext } from "react";
 import { TouchableOpacity } from "react-native";
 import { Text, View, StyleSheet, Animated, Dimensions, Easing } from "react-native";
 import { getFormattedDate } from "../utils/dateFormatter"
@@ -10,9 +10,11 @@ const screenHeight = Dimensions.get('window').height;
 
 const ICONS = ["house", "chart-simple", "trophy", "basket-shopping", "user", "gear"];
 
-const FooterTabBar = forwardRef(({ wave1 = 0, wave2 = 0, state, descriptors, navigation }, ref) => {
+const FooterTabBar = forwardRef(({ wave1 = 0, wave2 = 0, state, descriptors, navigation, selectedDay }, ref) => {
     const { theme } = useTheme();
     const styles = useMemo(() => createStyles(theme), [theme]);
+
+    const formatedDate = getFormattedDate(selectedDay)
     
     const [isChanging, setIsChanging] = useState(false);
     const wave3 = useRef(new Animated.Value(0)).current;
@@ -150,7 +152,7 @@ const FooterTabBar = forwardRef(({ wave1 = 0, wave2 = 0, state, descriptors, nav
             <Animated.View style={[styles.wave, styles.wave3, { transform: [{ translateY: wave3 || 0 }] }]}>
                 <Animated.View style={{ opacity: isChanging ? 0 : 1 }}>
                     {options.title === "Home" ?
-                        <Text style={styles.title}>{getFormattedDate()}</Text>
+                        <Text style={styles.title}>{formatedDate}</Text>
                         :
                         <Text style={styles.title}>{options.title}</Text>
                     }

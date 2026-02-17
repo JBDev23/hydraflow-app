@@ -9,6 +9,9 @@ import { LinearGradient } from "expo-linear-gradient";
 import TutorialOverlay from "../../components/TutorialOverlay";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useTheme } from "../../context/ThemeContext";
+import CustomModal from "../../components/CustomModal";
+import LevelUpModal from "../../components/LevelUpModal";
+import GradientIcon from "../../components/GradientIcon";
 
 export const AppContext = createContext(null);
 
@@ -68,6 +71,8 @@ const TUTORIAL_STEPS = [
   }
 ];
 
+const GOLD_COLORS = ['#FFD700', 'rgba(255,215,0,0.4)'];
+
 export default function AppLayout() {
 
   const insets = useSafeAreaInsets()
@@ -81,17 +86,25 @@ export default function AppLayout() {
   const [isKeyboardVisible, setKeyboardVisible] = useState(false);
   const [showTutorial, setShowTutorial] = useState(false);
 
+  const [showLevelUpModal, setShowLevelUpModal] = useState(false)
+  const [levelUpModalConfig, setLevelUpModalConfig] = useState({ level: 1, drops: 0 })
+
+  const [achievementQueue, setAchievementQueue] = useState([]);
+  const [currentAchievement, setCurrentAchievement] = useState(null);
+  const [showAchModal, setShowAchModal] = useState(false);
+
+  const [selectedDay, setSelectedDay] = useState(new Date())
 
   const currentScreenInfo = useMemo(() => {
-    const index = SCREENS_CONFIG.findIndex(s => 
-        pathname === s.path || pathname.includes(`/${s.name}`) || (s.name === 'index' && pathname === '/')
+    const index = SCREENS_CONFIG.findIndex(s =>
+      pathname === s.path || pathname.includes(`/${s.name}`) || (s.name === 'index' && pathname === '/')
     );
-    
+
     const safeIndex = index !== -1 ? index : 0;
-    
+
     return {
-        ...SCREENS_CONFIG[safeIndex],
-        step: safeIndex
+      ...SCREENS_CONFIG[safeIndex],
+      step: safeIndex
     };
   }, [pathname])
 
@@ -161,10 +174,31 @@ export default function AppLayout() {
     changeTab(0);
   };
 
+  const levelUp = (newLevel, dropsEarned) => {
+    setLevelUpModalConfig({ level: newLevel, drops: dropsEarned })
+    setShowLevelUpModal(true)
+    changeTab(0)
+  }
+
+  const newAch = (newAchs) => {
+    console.log("hi?")
+    if (newAchs && newAchs.length > 0) {
+      setAchievementQueue(prev => [...prev, ...newAchs]);
+    }
+  };
+
+  useEffect(() => {
+    if (!showAchModal && achievementQueue.length > 0) {
+      setCurrentAchievement(achievementQueue[0]);
+      setShowAchModal(true);
+      setAchievementQueue(prev => prev.slice(1));
+    }
+  }, [achievementQueue, showAchModal]);
+
   return (
-    <AppContext.Provider value={{ changeTab, currentStep: currentScreenInfo.step, startTutorial }}>
+    <AppContext.Provider value={{ changeTab, currentStep: currentScreenInfo.step, startTutorial, levelUp, selectedDay, setSelectedDay, newAch }}>
       <View style={{ flex: 1, backgroundColor: "white" }} onTouchStart={onTouchStart} onTouchEnd={onTouchEnd}>
-        <StatusBar style={theme.mode == "light" ? "dark" : "light"}/>
+        <StatusBar style={theme.mode == "light" ? "dark" : "light"} />
         <View style={[styles.header, { paddingTop: insets.top }]} onLayout={(event) => { const { height } = event.nativeEvent.layout; setHeaderHeight(height); }}>
           {currentScreenInfo.step != 0 && currentScreenInfo.step != 5 &&
             <TouchableOpacity onPress={() => { if (footerRef.current) { footerRef.current.onPress(0) } }} style={{ position: "absolute", zIndex: 5, left: 0, paddingBottom: insets.top, top: insets.top + 5, paddingHorizontal: 20 }}>
@@ -178,7 +212,7 @@ export default function AppLayout() {
         </View>
         <LinearGradient pointerEvents="none" colors={[theme.colors.background, "transparent"]} locations={[0, 0.5]} style={[styles.bottomfade2, { top: headerHeight }]}></LinearGradient>
         <Tabs
-          tabBar={(props) => <FooterTabBar {...props} ref={footerRef} />}
+          tabBar={(props) => <FooterTabBar {...props} ref={footerRef} selectedDay={selectedDay} />}
           screenOptions={{ headerShown: false }}
         >
           {SCREENS_CONFIG.map((screen) => (
@@ -195,13 +229,47 @@ export default function AppLayout() {
           </>
         )}
       </View>
-      <TutorialOverlay 
+      <TutorialOverlay
         visible={showTutorial}
         steps={TUTORIAL_STEPS}
         onFinish={closeTutorial}
         onSkip={closeTutorial}
         changeTab={changeTab}
       />
+      <CustomModal
+        visible={showLevelUpModal}
+        onClose={() => setShowLevelUpModal(false)}
+        borderColor={'#FFD700'}
+      >
+        <>
+          <LevelUpModal modalConfig={levelUpModalConfig} />
+        </>
+      </CustomModal>
+      <CustomModal
+        visible={showAchModal}
+        onClose={() => setShowAchModal(false)}
+        borderColor={'#FFD700'}
+      >
+        {currentAchievement && (
+          <View style={{alignItems: "center", justifyContent: "space-around", flex: 1}}>
+            <GradientIcon size={205} colors={GOLD_COLORS}>
+              <FontAwesome6 size={200} name={currentAchievement.icon} />
+            </GradientIcon>
+
+            <Text style={{fontFamily: theme.regular, color: theme.colors.text, fontSize: 50, marginTop: 5}}>
+              {currentAchievement.name.es}
+            </Text>
+
+            <Text style={{fontFamily: theme.regular, fontSize: 22, textAlign: "center", color: theme.colors.textSecondary}}>
+              {currentAchievement.description.es}
+            </Text>
+
+            <Text style={{fontFamily: theme.regular, fontSize: 18, textAlign: "center", color: theme.colors.textSecondary}}>
+              {new Date().toLocaleDateString()}
+            </Text>
+          </View>
+        )}
+      </CustomModal>
     </AppContext.Provider>
 
   )

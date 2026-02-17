@@ -221,7 +221,7 @@ const SupportView = ({ setCurrentView, styles, theme }) => {
 };
 
 const MainSettingsView = ({ setCurrentView, styles, theme }) => {
-  const { clearAllData } = useGlobal();
+  const { clearAllData, login } = useGlobal();
   const { changeTab, startTutorial } = useContext(AppContext);
   const [deleteModalVisible, setDeleteModalVisible] = useState(false);
   const [deleteDisabled, setDeleteDisabled] = useState(true);
@@ -255,7 +255,7 @@ const MainSettingsView = ({ setCurrentView, styles, theme }) => {
       <TouchableOpacity onPress={() => setCurrentView("support")} style={styles.menuItem}>
         <Text style={styles.menuText}>Soporte y datos</Text>
       </TouchableOpacity>
-      <TouchableOpacity style={styles.menuItem}>
+      <TouchableOpacity onPress={() => login("jordi@test.com", "Jordi Backend")} style={styles.menuItem}>
         <Text style={styles.menuText}>Cuenta</Text>
       </TouchableOpacity>
       

@@ -3,11 +3,12 @@ import Hydra from '../../components/Hydra';
 import GradientIcon from '../../components/GradientIcon';
 import { FontAwesome6 } from '@expo/vector-icons';
 import Drop from "../../assets/Drop.svg"
-import { useMemo, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { LinearGradient } from 'expo-linear-gradient';
 import ProfileItem from '../../components/ProfileItem';
 import { useTheme } from '../../context/ThemeContext';
 import { useGlobal } from '../../context/GlobalContext';
+import { useFocusEffect } from 'expo-router';
 
 const screenWidth = Dimensions.get('window').width;
 const screenHeight = Dimensions.get('window').height;
@@ -43,9 +44,15 @@ const StatBadge = ({ value, size, iconName, colors, CustomIcon, theme }) => {
 export default function Profile() {
   const { theme } = useTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
-  const { userProfile, updateUserProfile } = useGlobal()
+  const { userProfile, updateUserProfile, refreshUser } = useGlobal()
 
-  const stats = userProfile?.stats || { level: 1, progress: 0, archievements: 0, skins: 0, drops: 0, goals: 0, streak: 0 };
+  useFocusEffect(
+    useCallback(() => {
+      refreshUser();
+    }, [])
+  );
+
+  const stats = userProfile?.stats || { level: 1, progress: 0, totalGoalsReached: 0, dropsBalance: 0, currentStreak: 0, totalVolume: 0 };
   const name = userProfile?.name || "";
   const level = stats.level || 1;
   const progress = userProfile?.stats.progress || 0;
@@ -66,7 +73,7 @@ export default function Profile() {
         </View>
         <View style={styles.statContainer}>
           <View style={{ width: "100%" }}>
-            <Text style={styles.statText}>Hola {name}</Text>
+            <Text style={styles.statText}>Hola {name.length > 15 ? name.slice(0,15) + "..." : name}</Text>
           </View>
           <View style={{ width: "100%" }}>
             <Text style={styles.statText}>Nivel {level}</Text>
@@ -83,33 +90,33 @@ export default function Profile() {
       </View>
       <View style={styles.miscBar}>
         <StatBadge
-          value={formatNum(stats.streak)}
+          value={formatNum(stats.currentStreak)}
           iconName="fire-flame-curved"
           colors={['#FF0000', '#F9F918']}
           size={25}
           theme={theme}
         />
         <StatBadge
-          value={formatNum(stats.skins)}
+          value={formatNum(stats.skinsCount)}
           iconName="shirt"
           colors={['#FF01AA', '#A099FF']}
           size={22}
           theme={theme}
         />
         <StatBadge
-          value={formatNum(stats.drops)}
+          value={formatNum(stats.dropsBalance)}
           CustomIcon={Drop}
           theme={theme}
         />
         <StatBadge
-          value={formatNum(stats.goals)}
+          value={formatNum(stats.totalGoalsReached)}
           iconName="droplet"
           colors={['#6989E2', '#79D8FE']}
           size={25}
           theme={theme}
         />
         <StatBadge
-          value={formatNum(stats.archievements)}
+          value={formatNum(stats.achievementsCount)}
           iconName="medal"
           colors={['#FFD700', 'rgba(255,215,0,0.5)']}
           size={25}

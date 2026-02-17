@@ -43,7 +43,8 @@ export default function ProfileItem({ value, field, changeUser }) {
         if (VALUE_MAP[value]) {
             return VALUE_MAP[value];
         }
-        return value;
+        let val = value.length > 9 ? value.slice(0,8) + "..." : value
+        return val;
     }, [value]);
 
     return (

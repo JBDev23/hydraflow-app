@@ -113,7 +113,8 @@ const createStyles = (theme) => StyleSheet.create({
         paddingHorizontal: 10,
         position: "relative",
         backgroundColor: theme.colors.background,
-        alignSelf: "center"
+        alignSelf: "center",
+        overflow: "hidden"
     },
     row: {
         flexDirection: "row",

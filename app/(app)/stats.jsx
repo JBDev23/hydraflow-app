@@ -10,6 +10,7 @@ import Hydra from '../../components/Hydra';
 import GradientIcon from '../../components/GradientIcon';
 import { useTheme } from '../../context/ThemeContext';
 import { useGlobal } from '../../context/GlobalContext';
+import { api } from '../../services/api';
 const screenWidth = Dimensions.get('window').width;
 const screenHeight = Dimensions.get('window').height;
 
@@ -39,6 +40,11 @@ export default function Stats() {
 
   const goal = userProfile?.goal || 2000
 
+  const stats = userProfile?.stats || { level: 1, progress: 0, totalGoalsReached: 0, dropsBalance: 0, currentStreak: 0, totalVolume: 0 };
+  const streak = stats?.currentStreak || 0
+  const goals = stats?.totalGoalsReached || 0
+  const totalVolume = Math.floor(stats.totalVolume/1000) || 0
+
   const [period, setPeriod] = useState(1);
   const [date, setDate] = useState(new Date());
   const [chartConfig, setChartConfig] = useState({
@@ -51,46 +57,35 @@ export default function Stats() {
   const week = useMemo(() => getWeekDays(date), [date]);
   const monthWeeks = useMemo(() => getWeeksForMonth(date.getMonth(), date.getFullYear()), [date]);
 
+  const [metric, setMetric] = useState(0)
+
   const dataQuantity = [1800, 1170, 10.85];
 
-  useEffect(() => {
-    let newConfig = { ...chartConfig, goal, ceil: 100 };
-
+  const setNewStats = async() => {
+    let newStats
     switch (period) {
       case 0:
-        newConfig = {
-          ...newConfig,
-          rows: 7,
-          columns: 8,
-          values: [200, 300, 500, 100, 0, 500, 200, 0],
-          colNames: ["0", "3", "6", "9", "12", "15", "18", "21"],
-          goal: goal / 8,
-        };
+        newStats = await api.getStats("day", date)
+        newStats = {...newStats, goal: goal/8}
         break;
       case 1:
-        newConfig = {
-          ...newConfig,
-          rows: 7,
-          columns: 7,
-          values: [2100, 1000, 1000, 1000, 1000, 1000, 1100],
-          colNames: ["L", "M", "X", "J", "V", "S", "D"],
-          goal: goal,
-        };
+        newStats = await api.getStats("week", date)
+        newStats = {...newStats, goal: goal}
         break;
       case 2:
-        const monthLabels = monthWeeks.map(w => `${w.start.getDate()}-${w.end.getDate()}`);
-        newConfig = {
-          ...newConfig,
-          rows: 7,
-          columns: monthLabels.length,
-          values: [14.7, 7, 7, 7, 7.7],
-          colNames: monthLabels,
-          goal: (goal / 1000) * 7,
-          ceil: 1
-        };
+        newStats = await api.getStats("month", date)
+        newStats = {...newStats, goal: goal*7}
+        break;
+      default:
+        newStats = await api.getStats("day", date)
         break;
     }
-    setChartConfig(newConfig);
+    setChartConfig(newStats);
+    setMetric(newStats.metric)
+  }
+
+  useEffect(() => {
+    setNewStats()
   }, [period, date, goal, monthWeeks]);
 
   const handleDateChange = (direction) => {
@@ -165,7 +160,7 @@ export default function Stats() {
       <View onTouchStart={onTouchStart} onTouchEnd={onTouchEnd}>
         <View style={styles.headerData}>
           <Text style={styles.texto}>{DATA_NAME[period]}: </Text>
-          <Text style={[styles.texto, { color: theme.colors.primaryDark }]}>{dataQuantity[period]} {period == 2 ? "l" : "ml"}</Text>
+          <Text style={[styles.texto, { color: theme.colors.primaryDark }]}>{metric}</Text>
         </View>
         <Animated.View style={{ transform: [{ translateX: translateA }] }}>
           <Chart width={screenWidth * 0.85} height={screenHeight * 0.35} {...chartConfig} />
@@ -191,21 +186,21 @@ export default function Stats() {
         <View style={styles.statGrid}>
            <StatItem 
               label="Racha" 
-              value="2" 
+              value={streak}
               icon="fire-flame-curved" 
               colors={['#FF0000', '#F9F918']} 
               theme={theme}
           />
           <StatItem 
               label="Metas" 
-              value="1" 
+              value={goals} 
               icon="droplet" 
               colors={['#79D8FE', '#6989E2']} 
               theme={theme}
           />
           <StatItem 
               label="Litros" 
-              value="4" 
+              value={totalVolume} 
               icon="water" 
               colors={['#79D8FE', '#7AACFE']} 
               theme={theme}
